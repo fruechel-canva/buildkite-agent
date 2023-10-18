@@ -61,6 +61,59 @@ func (e *Executor) preparePlugins() error {
 		e.shell.Commentf("Parsed %d plugins", len(e.plugins))
 	}
 
+	err = e.validatePluginAllowlist()
+	if err != nil {
+		// err contains enough detail already
+		return err
+	}
+
+	return nil
+}
+
+// Check if there is a plugin allowlist and if all plugins match it. Return an error of they don't.
+func (e *Executor) validatePluginAllowlist() error {
+	if e.plugins == nil {
+		// should never happen: function should only be called *after* plugins were initialised
+		return fmt.Errorf("Plugins not initialised")
+	}
+
+	if e.PluginAllowlist == nil {
+		// No allowlist means no checking
+		return nil
+	}
+
+	if len(e.PluginAllowlist) == 0 {
+		return fmt.Errorf("No plugins are allowed since allowlist is empty")
+	}
+
+	forbidden_plugins := make([]string, 0)
+	for _, plugin := range e.plugins {
+		if plugin.Vendored {
+			// Vendored plugins are always allowed
+			continue
+		}
+
+		if plugin.Scheme == "file" {
+			// Files on the agent are always allowed
+			continue
+		}
+
+		plugin_allowed := false
+		for _, allowed_plugin := range e.PluginAllowlist {
+			if allowed_plugin == plugin.Location {
+				plugin_allowed = true
+			}
+		}
+		if !plugin_allowed {
+			forbidden_plugins = append(forbidden_plugins, plugin.Label())
+		}
+	}
+
+	if len(forbidden_plugins) > 0 {
+		forbidden_locations := strings.Join(forbidden_plugins, ", ")
+		return fmt.Errorf("Failed plugin allowlist: %s", forbidden_locations)
+	}
+
 	return nil
 }
 

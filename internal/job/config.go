@@ -104,6 +104,9 @@ type ExecutorConfig struct {
 	// Whether to validate plugin configuration
 	PluginValidation bool
 
+	// List of plugins to allow. If not specified, allow all. If empty, allow none.
+	PluginAllowlist []string
+
 	// Are local hooks enabled?
 	LocalHooksEnabled bool
 
